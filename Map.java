@@ -21,7 +21,7 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	}
 	
 	public Map(K[] keys,V[] values) {
-		if(keys.length!=values.length) {
+		if(keys.length!=values.length) {            
 			throw new IllegalStateException("Keys length and values length ar not same");
 		}
 		for(int i=0;i<keys.length;i++){
