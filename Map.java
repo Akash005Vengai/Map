@@ -342,10 +342,3 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	}
 	
 }
-
-/*
- * 
- * replace
- * putifAbsent
- * 
- */
