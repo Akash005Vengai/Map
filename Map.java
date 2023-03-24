@@ -5,10 +5,12 @@ import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	
@@ -24,6 +26,15 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 		}
 		for(int i=0;i<keys.length;i++){
 			put(keys[i],values[i]);
+		}
+	}
+
+	public Map(List<K> keys,List<V> values) {
+		if(keys.size()!=values.size()) {
+			throw new IllegalStateException("Keys length and values length ar not same");
+		}
+		for(int i=0;i<keys.size();i++){
+			put(keys.get(i),values.get(i));
 		}
 	}
 	
@@ -42,9 +53,11 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	}
 	
 	public void forEach(BiConsumer<K, V> syntex) {
+		if(head==null)
+			return;
 		if(syntex==null)
 			throw new NullPointerException();
-		Node<K,V> g=head;
+		Entry g=head;
 		for(int i=0;i<length;i++) {
 			syntex.accept(g.getKey(), g.getValue());
 			g=g.next();
@@ -61,8 +74,22 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 		return map;
 	}
 	
+	public Map<K,V> filter(Predicate<K> syntex) {
+		Map<K,V> map = new Map<>();
+		forEach((n,m)->{
+			if(syntex.test(n)) {
+				map.put(n, m);
+			}
+		});
+		return map;
+	}
+	
 	public boolean containsKey(K key) {
 		return getNode(key)!=null;
+	}
+	
+	public boolean containsValue(V value){
+		return getValue(value)!=null;
 	}
 	
 	public boolean conatainsKey(K key,V value) {
@@ -73,15 +100,15 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 		return head==null;
 	}
 	
-	public V remove(K key) {
-		Node<K,V> curr = getNode(key);
+	public V remove(K key){
+		Entry curr = getNode(key);
 		if(curr!=null) {
 			V key1 = curr.getValue();
-			if(curr.next()==null) {
+			 if(curr.previous()==null){
+					head = head.next();
+			}else if(curr.next()==null){
 				last = curr.previous();
 				last.setNext(null);
-			}else if(curr.previous()==null) {
-				head = head.next();
 			}else {
 				curr.previous().setNext(curr.next());
 				curr.next().setPrevious(curr.previous());
@@ -100,99 +127,37 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	public V put(K key,V value){
 		if(key==null||value==null)
 			throw new NullPointerException();
-		Node<K,V> curr = getNode(key);
+		Entry curr = getNode(key);
 		if(curr!=null) {
 			curr.setValue(value);
 			return value;
 		}
 		if(length==0) {
-			head = new Node<>(key,value,null,null);
+			head = new Entry(key,value,null,null);
 			last = head;
 		}else if(length==1) {
-			head.setNext(new Node<>(key,value,null,head));
+			head.setNext(new Entry(key,value,null,head));
 			last = head.next();
 		}else {
-			last.setNext(new Node<>(key,value,null,last));
+			last.setNext(new Entry(key,value,null,last));
 			last = last.next();
 		}
 			length++;
 		return value;
 	}
 	
-	private Node<K,V> head;
-	private Node<K,V> last;
+	private Entry head;
+	private Entry last;
 	private int length;
 	
-	@Override
-	public String toString() {
-		if(head==null) {
-			return "{}";
-		}
-		StringBuffer buff = new StringBuffer("{");
-		Node<K,V> curr = head;
-		buff.append(curr.toString());
-		while(curr.next()!=null) {
-			curr = curr.next();
-			buff.append(", "+curr.toString());
-		}
-		buff.append("}");
-		return buff.toString();
-	}
-	
-	private Node<K,V> getNode(K key){
-		Node<K,V> curr = head;
-		while(curr!=null) {
-			if(curr.getKey().equals(key)) {
-				return curr;
-			}
-			curr = curr.next();
-		}
-		return null;
-	}
-
-	private Node<K,V> get(int index) throws MapIndexOutOfBoundsException{
-		if(index<0||length<=index)
-			throw new MapIndexOutOfBoundsException("Index "+index+" out of bounds for length "+length);
-		if(index == 0) {
-			return head;
-		}else if(length-1 == index) {
-			return last;
-		}else if(index>length/2){
-			Node<K,V> curr = last;
-			for(int i = length-2;i>length/2;i--)
-				curr = curr.previous();
-			return curr;
-		}else {
-			Node<K,V> curr = head;
-			for(int i = 1;i<length/2;i++)
-				curr = curr.next();
-			return curr;
-		}
-	}
-	
-	private Node<K,V> getNode(K key,V value){
-		Node<K,V> curr = head;
-		while(curr!=null) {
-			if(curr.getKey().equals(key)&&curr.getValue().equals(value)) {
-				return curr;
-			}
-			curr = curr.next();
-		}
-		return null;
-	}
-	
 	public V get(K key){
-		Node<K,V> curr = getNode(key);
+		Entry curr = getNode(key);
 		return curr==null?null:curr.getValue();
 	}
 	
-	public V getElement(int index) throws MapIndexOutOfBoundsException {
-		Node<K,V> curr = get(index);
-		return curr==null?null:curr.getValue();
-	}
 	
 	public V get(K key,V value){
-		Node<K,V> curr = getNode(key,value);
+		Entry curr = getNode(key,value);
 		return curr==null?null:curr.getValue();
 	}
 	
@@ -200,12 +165,11 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 		return length;
 	}
 	
-	
 	@Override
 	public Iterator<K> iterator() {
 		return new Iterator<K>() {
 
-			Node<K,V> curr = head;
+			Entry curr = head;
 			int size = length;
 			
 			@Override
@@ -227,6 +191,7 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 	}
 	
 	
+	
 	public Set<K> keys(){
 		Set<K> set = new HashSet<>();
 		forEach((n,m)->{
@@ -244,75 +209,143 @@ public class Map<K,V> implements Iterable<K>,Serializable,Cloneable {
 		return (V[]) values.toArray();
 	}
 	
-}
+	class Entry{
+		
+		private Entry previous;
+		private Entry next;
+		private K key;
+		private V value;
+		
+		Entry(K key,V value,Entry next,Entry previous){
+			this.key = key;
+			this.value = value;
+			this.next = next;
+			this.previous = previous;
+		}
+		
+		@Override
+		public String toString() {
+			return key+"="+value;
+		}
 
-/*
- * set
- */
+		public Entry previous() {
+			return previous;
+		}
 
-class Node<K,V>{
-	
-	private Node<K,V> previous;
-	private Node<K,V> next;
-	private K key;
-	private V value;
-	
-	Node(K key,V value,Node<K,V> next,Node<K,V> previous){
-		this.key = key;
-		this.value = value;
-		this.next = next;
-		this.previous = previous;
+		public void setPrevious(Entry previous) {
+			this.previous = previous;
+		}
+
+		public Entry next() {
+			return next;
+		}
+
+		public void setNext(Entry next){
+			this.next = next;
+		}
+
+		public K getKey() {
+			return key;
+		}
+
+		public V getValue() {
+			return value;
+		}
+		
+		public void setValue(V value) {
+			this.value = value;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(key, value);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Entry other = (Entry) obj;
+			return Objects.equals(key, other.key) && Objects.equals(value, other.value);
+		}
+		
 	}
 	
 	@Override
 	public String toString() {
-		return key+"="+value;
-	}
-
-	public Node<K, V> previous() {
-		return previous;
-	}
-
-	public void setPrevious(Node<K, V> previous) {
-		this.previous = previous;
-	}
-
-	public Node<K, V> next() {
-		return next;
-	}
-
-	public void setNext(Node<K, V> next) {
-		this.next = next;
-	}
-
-	public K getKey() {
-		return key;
-	}
-
-	public V getValue() {
-		return value;
+		if(head==null) {
+			return "{}";
+		}
+		StringBuffer buff = new StringBuffer("{");
+		Entry curr = head;
+		buff.append(curr.toString());
+		while(curr.next()!=null) {
+			curr = curr.next();
+			buff.append(", "+curr.toString());
+		}
+		buff.append("}");
+		return buff.toString();
 	}
 	
-	public void setValue(V value) {
-		this.value = value;
+	private Entry getNode(K key){
+		Entry curr = head;
+		while(curr!=null) {
+			if(curr.getKey().equals(key)) {
+				return curr;
+			}
+			curr = curr.next();
+		}
+		return null;
+	}
+	
+	private Entry getValue(V value){
+		Entry curr = head;
+		while(curr!=null) {
+			if(curr.getValue().equals(value)) {
+				return curr;
+			}
+			curr = curr.next();
+		}
+		return null;
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(key, value);
+	private Entry getNode(K key,V value){
+		Entry curr = head;
+		while(curr!=null) {
+			if(curr.getKey().equals(key)&&curr.getValue().equals(value)) {
+				return curr;
+			}
+			curr = curr.next();
+		}
+		return null;
 	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Node<K,V> other = (Node<K,V>) obj;
-		return Objects.equals(key, other.key) && Objects.equals(value, other.value);
+	
+	public K firstKey() {
+		return head==null?null:head.getKey();
+	}
+	
+	public K lastKey() {
+		return last==null?null:last.getKey();
+	}
+	
+	public V firstValue() {
+		return head==null?null:head.getValue();
+	}
+	
+	public V lastValue() {
+		return last==null?null:last.getValue();
 	}
 	
 }
+
+/*
+ * 
+ * replace
+ * putifAbsent
+ * 
+ */
